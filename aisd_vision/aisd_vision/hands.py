@@ -34,7 +34,15 @@ class Hands(Node):
             Hand,
             'cmd_hand',
             10
+        )       
+        
+        # Initialize MediaPipe Hands once for the lifetime of the node
+        self.myhands = mp_hands.Hands(
+            model_complexity=0,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
         )
+
 
 
     def listener_callback(self, msg):
@@ -45,43 +53,37 @@ class Hands(Node):
         PINKY_FINGER_TIP = 20
         INDEX_FINGER_TIP = 8
 
-        # Initialize MediaPipe's hand detection and tracking model
-        with mp_hands.Hands(
-            model_complexity=0,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
-        ) as myhands:
 
-            # Mark the image as not writeable to improve performance
-            image.flags.writeable = False
+        # Mark the image as not writeable to improve performance
+        image.flags.writeable = False
 
-            # Convert the image from OpenCV BGR format to RGB
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # Convert the image from OpenCV BGR format to RGB
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-            # Analyze the image and detect hand landmarks
-            results = myhands.process(image)
+        # Analyze the image and detect hand landmarks
+        results = self.myhands.process(image)
 
-            # Check whether at least one hand was detected
-            if results.multi_hand_landmarks:
+        # Check whether at least one hand was detected
+        if results.multi_hand_landmarks:
 
-                # Create a custom ROS 2 Hand message
-                hand_msg = Hand()
+            # Create a custom ROS 2 Hand message
+            hand_msg = Hand()
 
-                # Get the normalized horizontal position of the pinky tip
-                hand_msg.xpinky = results.multi_hand_landmarks[0].landmark[
-                    PINKY_FINGER_TIP
-                ].x
+            # Get the normalized horizontal position of the pinky tip
+            hand_msg.xpinky = results.multi_hand_landmarks[0].landmark[
+                PINKY_FINGER_TIP
+            ].x
 
-                # Get the normalized horizontal position of the index tip
-                hand_msg.xindex = results.multi_hand_landmarks[0].landmark[
-                    INDEX_FINGER_TIP
-                ].x
+            # Get the normalized horizontal position of the index tip
+            hand_msg.xindex = results.multi_hand_landmarks[0].landmark[
+                INDEX_FINGER_TIP
+            ].x
 
-                # Publish only when another node is subscribed
-                if self.hand_publisher.get_subscription_count() > 0:
-                    self.hand_publisher.publish(hand_msg)
-                else:
-                    self.get_logger().info('waiting for subscriber')
+            # Publish only when another node is subscribed
+            if self.hand_publisher.get_subscription_count() > 0:
+                self.hand_publisher.publish(hand_msg)
+            else:
+                self.get_logger().info('waiting for subscriber')
 
 
 def main(args=None):
@@ -101,6 +103,7 @@ def main(args=None):
 
     finally:
         # Release resources and destroy the ROS 2 node
+        hands.myhands.close()
         hands.destroy_node()
 
         # Shut down ROS 2 communication
