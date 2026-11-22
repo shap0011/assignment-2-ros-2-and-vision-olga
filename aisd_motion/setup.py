@@ -15,8 +15,8 @@ setup(
     zip_safe=True,
     maintainer='aisd',
     maintainer_email='aisd@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='ROS 2 motion package that converts hand positions into movement commands for Turtlesim.',
+    license='TODO: No license specified',
     extras_require={
         'test': [
             'pytest',
@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'move = aisd_motion.move:main',
         ],
     },
 )
