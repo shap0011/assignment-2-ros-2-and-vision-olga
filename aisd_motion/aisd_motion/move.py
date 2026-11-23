@@ -1,3 +1,4 @@
+import time
 import rclpy
 from rclpy.node import Node
 from aisd_msgs.msg import Hand
@@ -24,9 +25,24 @@ class Move(Node):
             'cmd_vel',
             10
         )
+               
+        # Remember when the most recent Hand message arrived
+        self.last_hand_time = time.monotonic()
+
+        # Maximum time allowed without receiving a Hand message
+        self.hand_timeout = 1.0
+
+        # Check periodically whether hand detection has stopped
+        self.safety_timer = self.create_timer(
+            0.1,
+            self.check_hand_timeout
+        )
 
 
     def listener_callback(self, msg):
+        # Update the time whenever a new Hand message arrives
+        self.last_hand_time = time.monotonic()
+
         # Initialize angular and linear velocities to zero
         angle = 0.0
         linear = 0.0
@@ -68,6 +84,22 @@ class Move(Node):
 
         else:
             self.get_logger().info('waiting for subscriber')
+            
+               
+    def check_hand_timeout(self):
+        # Calculate how long it has been since the last Hand message
+        elapsed = time.monotonic() - self.last_hand_time
+
+        # Stop the turtle if no Hand messages arrive within the timeout
+        if elapsed >= self.hand_timeout:
+
+            # Create a Twist message with zero velocities
+            stop_msg = Twist()
+            stop_msg.linear.x = 0.0
+            stop_msg.angular.z = 0.0
+
+            # Publish the stop command
+            self.vel_publisher.publish(stop_msg)
 
 
 def main(args=None):
